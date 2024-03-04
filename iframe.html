@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ok</title>
+  </head>
+  <body>
+    ok
+
+    <script>
+      /* globals */
+      // console.warn('[[[IFRAME]]]: executing code in Iframe')
+      // note: localhost:5173 is a local vite server only used for local testing
+      // proservices.github.io contains demos and test pages by the Genesys Team
+      // in the production version these servers are not allowed
+
+      const allowedDomains = [
+        'https://localhost',
+        'http://localhost:59044',
+        'https://nr-customers.s3.amazonaws.com',
+      ]
+
+      function sendMessage(type, content, target) {
+        if (
+          !type ||
+          window.parent === window ||
+          allowedDomains.indexOf(target) === -1
+        )
+          return
+        // console.warn('[[[IFRAME]]]: Sending message to PARENT')
+        const message = JSON.stringify({ type, content: content || '' })
+        // console.warn(message)
+        window.parent.postMessage(message, target)
+      }
+
+      console.log('adding event')
+
+      window.addEventListener(
+        'message',
+        function (event) {
+          console.log(event)
+          // console.log('Received command from: ', event.origin)
+          if (allowedDomains.indexOf(event.origin) === -1) return
+          // console.warn('[[[IFRAME]]]: Message origin was allowed')
+          const message = JSON.parse(event.data)
+          if (message.type) {
+            // console.warn('[[[IFRAME]]]: Received message:' + JSON.stringify(message))
+
+            // respond yes when checking if iframe was loaded
+            if (message.type === 'check') {
+              // console.log('[[[IFRAME]]]: Received connection request, answering...')
+              sendMessage('ok', '', event.origin)
+            }
+
+            if (message.type === 'set' && message.content) {
+              if (message.content[1]) {
+                // console.log('Setting key: ', message.content[0])
+                window.localStorage.setItem(
+                  message.content[0],
+                  message.content[1]
+                )
+              } else {
+                // console.log('Removing key: ', message.content[0])
+                window.localStorage.removeItem(message.content[0])
+              }
+            }
+
+            if (message.type === 'get' && message.content) {
+              sendMessage(
+                'response',
+                [
+                  message.content,
+                  window.localStorage.getItem(message.content) || '',
+                ],
+                event.origin
+              )
+            }
+          }
+        },
+        false
+      )
+    </script>
+  </body>
+</html>
